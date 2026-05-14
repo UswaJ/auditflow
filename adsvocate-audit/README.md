@@ -1,159 +1,170 @@
-# ADSVOCATE AUDIT PIPELINE
-## Automated Cold Outreach Audit Tool — Completely Free
+# AuditFlow
+
+Automated ad tracking audit and cold outreach pipeline for Pakistani e-commerce brands.
+
+Finds brands running Meta Ads, audits their website tracking setup, checks their Instagram activity and Google Ads presence, classifies what's broken, and generates a ready-to-send personalised DM — all without any manual steps between discovery and output.
 
 ---
 
-## WHAT IT DOES
+## What it does
 
-1. **Searches Meta Ads Library** (Pakistan, active ads) for your keywords
-2. **Filters qualifying brands** (3–25 active ads, no verified badge, has website)
-3. **Audits each website** — checks Meta Pixel, GTM, Google Ads tag, cookies, dataLayer
-4. **Scrapes Instagram** — followers, last post date, activity status
-5. **Checks Google Ads Transparency** — whether they're also running Google Ads
-6. **Generates the DM** — exact pitch based on what's broken, under 100 words
-7. **Saves everything to CSV** — one row per brand, all fields
+Most small e-commerce brands in Pakistan are running Meta or Google Ads with broken or missing tracking. They're spending money with zero conversion data going back to the algorithm. AuditFlow finds these brands automatically and tells you exactly what's wrong with each one.
+
+**Full pipeline:**
+
+1. Searches the Meta Ads Library (Pakistan, active ads) for your keywords
+2. Filters qualifying brands — 3 to 25 active ads, no verified badge, has a website
+3. Audits each website — Meta Pixel, GTM, Google Ads tag, dataLayer, conversion events across homepage, product page, and checkout
+4. Scrapes Instagram — follower count, last post date, activity status
+5. Checks Google Ads Transparency — whether the brand is also running Google Ads
+6. Classifies the finding into one of 8 pitch types
+7. Generates a personalised cold outreach DM under 100 words, ready to send
+8. Saves everything to a timestamped CSV
 
 ---
 
-## SETUP (one-time, ~5 minutes)
+## Output
 
-### 1. Install Python 3.10+
-If not already installed: https://python.org/downloads
+Each run produces a CSV in `results/` — one row per brand.
+
+![AuditFlow CSV Output](screenshots/csv_output.png)
+
+**Fields include:**
+- Brand name, Facebook URL, website URL, Instagram handle
+- Active ad count, oldest ad age, formats, CTA type
+- Instagram followers, activity status, last post (days ago)
+- Pixel: fires homepage / product page / checkout
+- GTM: present, dataLayer empty or configured, ecommerce events
+- Google Ads tag, conversion tag, GA4
+- Cookies: `_fbp`, `_gcl_au`, `_ga`
+- Contact email and WhatsApp link found on website
+- Google Ads Transparency result
+- **Pitch type** — what's broken
+- **DM** — ready to send
+
+---
+
+## Pitch types
+
+| Code | Finding |
+|------|---------|
+| A1 | No tracking at all — running ads completely blind |
+| A2 | No Meta Pixel installed |
+| A3 | Pixel fires homepage only, drops at checkout |
+| A4 | GTM installed but empty — no events configured |
+| A5 | Google Ads running but no conversion tag |
+| B1 | Image-only ads running 60+ days, no video |
+| B2 | Instagram inactive 45+ days while ads are running |
+| C  | Tracking clean — pivot to creative/strategy angle |
+
+Priority order: most severe finding wins. A1 beats everything.
+
+---
+
+## Tech stack
+
+- **Python 3.10+**
+- **Playwright (async)** — browser automation for Meta Ads Library, Instagram, Google Transparency
+- **Anti-bot measures** — randomised delays, incognito context, human-like interaction via `slow_mo`
+- **Template-based DM generator** — no API, no cost, runs entirely offline
+- **CSV reporter** — structured output, opens directly in Google Sheets
+
+---
+
+## Setup
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/UswaJ/auditflow.git
+cd auditflow
+```
 
 ### 2. Install dependencies
 ```bash
-cd adsvocate-audit
 pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 3. Edit config.py
-Add the keywords you want to search. That's it.
+### 3. Configure keywords
+Edit `config.py` and add the product categories you want to search:
+```python
+KEYWORDS = [
+    "lawn suits",
+    "whitening serum",
+    "online course",
+]
+```
 
 ---
 
-## HOW TO RUN
+## Usage
 
-### Full pipeline (all keywords in config.py):
+### Run the full pipeline
 ```bash
 python main.py
 ```
 
-### Specific keywords only:
+### Target specific keywords
 ```bash
-python main.py "lawn suits" "whitening serum"
+python main.py "skincare" "bakery"
 ```
 
-### Audit a single website directly:
+### Audit a single website directly
 ```bash
 python main.py --website https://brandname.pk
 ```
 
-### Headless mode (browser runs in background, faster):
+### Run headless (browser in background)
 ```bash
 python main.py --headless
 ```
 
 ---
 
-## OUTPUT
+## Manual workflow this replaces
 
-Results save to: `results/audit_YYYYMMDD_HHMMSS.csv`
-
-Each row = one brand. Columns include:
-- Brand name, Facebook URL, Website URL, Instagram handle
-- Ad count, oldest ad age, formats, CTA type
-- Instagram followers, activity status, last post days ago
-- Pixel fires homepage / product / checkout
-- GTM present, dataLayer empty or not, ecommerce events
-- Google Ads tag present, cookies (_fbp, _gcl_au, _ga)
-- Contact email found on website
-- WhatsApp link found on website
-- Google Ads Transparency result
-- **Pitch type** (A1/A2/A3/A4/A5/B1/B2/C)
-- **DM** (ready to send, under 100 words)
-
-Open in Google Sheets for easy filtering and outreach management.
+| Task | Manual time | With AuditFlow |
+|------|-------------|----------------|
+| 10 brands audited | ~90 minutes | 15–20 minutes |
+| DMs written | ~30 minutes | 0 minutes |
+| Spreadsheet filled | ~20 minutes | 0 minutes |
 
 ---
 
-## PITCH TYPES
+## Important notes
 
-| Code | What it means |
-|------|--------------|
-| A1   | No tracking at all — running ads completely blind |
-| A2   | No Meta Pixel installed |
-| A3   | Pixel fires homepage only, drops at checkout |
-| A4   | GTM installed but empty — no events configured |
-| A5   | Google Ads running but no conversion tag |
-| B1   | Image-only ads, no video, running 60+ days |
-| B2   | Instagram inactive 45+ days while ads are running |
-| C    | Tracking clean — pivot to creative/strategy angle |
+**Meta Ads Library** opens visibly so you can monitor it. Facebook sometimes shows a login prompt or CAPTCHA — log in when it does, the script waits and continues automatically.
+
+**Instagram** works on public profiles without login. If it redirects to login, the scraper skips that field and marks `instagram_error`.
+
+**Rate limits** — built-in random delays between requests. Default is 8 brands per keyword. Do not reduce the delays.
+
+**DM accuracy** — the website audit catches ~85% of tracking issues correctly. Review each DM before sending and verify the finding is accurate.
 
 ---
 
-## IMPORTANT NOTES
-
-**Meta Ads Library:** The browser opens visibly so you can monitor what's happening.
-Facebook sometimes shows login prompts or CAPTCHAs. If it does:
-- Log into Facebook in the browser that opens
-- The script will wait and continue automatically
-
-**Instagram:** Public profiles work without login. If Instagram redirects to login,
-the scraper skips that field and marks instagram_error.
-
-**Rate limits:** Built-in random delays between requests. Default is 10 brands max
-per keyword. Do not reduce the delays — Meta and Instagram will block you.
-
-**DM quality:** Review every DM before sending. The generator uses the exact
-pitch angles from your audit workflow doc. Always verify the finding is accurate
-before DMing — the website audit catches ~85% of tracking issues correctly.
-
----
-
-## FOLDER STRUCTURE
+## Folder structure
 
 ```
-adsvocate-audit/
-├── main.py                    ← Run this
-├── config.py                  ← Edit keywords and filters here
+auditflow/
+├── main.py                      ← Entry point
+├── config.py                    ← Keywords, filters, delays
 ├── requirements.txt
 ├── scrapers/
-│   ├── meta_ads.py            ← Meta Ads Library discovery
-│   ├── website.py             ← Technical website audit
-│   ├── instagram.py           ← Instagram profile scraper
-│   └── google_transparency.py ← Google Ads Transparency check
+│   ├── meta_ads.py              ← Meta Ads Library discovery
+│   ├── website.py               ← Technical website audit
+│   ├── instagram.py             ← Instagram profile scraper
+│   └── google_transparency.py  ← Google Ads Transparency check
 ├── generator/
-│   └── dm.py                  ← DM generation (no API, free)
+│   └── dm.py                    ← DM generation (no API, free)
 ├── utils/
-│   └── reporter.py            ← CSV output
-└── results/                   ← Output files appear here
+│   └── reporter.py              ← CSV output
+└── results/                     ← Output files appear here
 ```
 
 ---
 
-## COST
+## Built by
 
-Zero. Completely free.
-- Playwright: free, open source
-- DM generator: template-based, no API
-- Meta Ads Library: public, no API needed
-- Instagram: public profiles, no API
-- Google Transparency: public, no API
-
----
-
-## DAILY WORKFLOW (from your audit doc)
-
-10 brands = ~90 minutes manually → ~15-20 minutes with this tool (mostly waiting for pages to load).
-
-1. `python main.py "your keyword"` 
-2. Watch the terminal output
-3. Open the CSV in Google Sheets
-4. Review DMs (edit if needed)
-5. Send from Instagram on your phone following anti-spam protocol:
-   - Follow first
-   - Like 1–2 posts
-   - Wait 30 minutes
-   - Send DM
-   - Max 10 DMs per day from new account
+Uswa Jamil — CS Student @ COMSATS University Islamabad  
+[linkedin.com/in/uswa-jamil-683909303](https://linkedin.com/in/uswa-jamil-683909303) · [github.com/UswaJ](https://github.com/UswaJ)
